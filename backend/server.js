@@ -2,6 +2,14 @@ const express = require('express');
 const mongoose = require('mongoose');
 const cors = require('cors');
 const dotenv = require('dotenv');
+const authRoutes = require('./routes/auth');
+const orderRoutes = require('./routes/orders');
+const rateRoutes = require('./routes/rates');
+const inventoryRoutes = require('./routes/inventory');
+const ledgerRoutes = require('./routes/ledger');
+const wholesalerRoutes = require('./routes/wholesaler');
+const staffRoutes = require('./routes/staff');
+const findRoutes = require('./routes/find');
 
 // Load environment variables
 dotenv.config();
@@ -11,11 +19,10 @@ const app = express();
 
 // Middleware
 app.use(cors({
-  origin: ['http://127.0.0.1:5500', 'http://localhost:5500', 'http://192.168.1.9:5500'],
-  credentials: true,
+  origin: ['http://localhost:3000', 'http://127.0.0.1:3000', 'http://localhost:5500', 'http://127.0.0.1:5500', 'null'],
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization'],
-  exposedHeaders: ['Authorization']
+  credentials: true
 }));
 app.use(express.json());
 
@@ -35,6 +42,33 @@ const connectDB = async () => {
     });
 
     console.log('Successfully connected to MongoDB');
+
+    // Create indexes
+    try {
+      const Rate = require('./models/Rate');
+
+      // Try to drop existing index first
+      try {
+        await Rate.collection.dropIndex("item_1_type_1");
+      } catch (err) {
+        if (err.codeName !== "IndexNotFound") {
+          console.error("Error dropping index:", err);
+        }
+      }
+
+      // Create new index
+      await Rate.collection.createIndex(
+        { item: 1, type: 1 },
+        {
+          unique: true,
+          background: true,
+          name: 'item_type_unique'
+        }
+      );
+      console.log('Successfully created Rate indexes');
+    } catch (indexError) {
+      console.log('Index creation skipped:', indexError.message);
+    }
 
     // Handle MongoDB connection events
     mongoose.connection.on('error', (err) => {
@@ -67,10 +101,14 @@ app.use((req, res, next) => {
 });
 
 // Routes
-app.use('/api/auth', require('./routes/auth'));
-app.use('/api/orders', require('./routes/orders'));
-app.use('/api/rates', require('./routes/rates'));
-app.use('/api/inventory', require('./routes/inventory'));
+app.use('/api/auth', authRoutes);
+app.use('/api/orders', orderRoutes);
+app.use('/api/rates', rateRoutes);
+app.use('/api/inventory', inventoryRoutes);
+app.use('/api/ledger', ledgerRoutes);
+app.use('/api/wholesaler', wholesalerRoutes);
+app.use('/api/staff', staffRoutes);
+app.use('/api/find', findRoutes);
 
 // Protected route for testing authentication
 app.get('/api/protected', require('./middleware/auth'), (req, res) => {
@@ -115,9 +153,43 @@ app.use((err, req, res, next) => {
   });
 });
 
-// Start server
-const PORT = process.env.PORT || 5000;
-app.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`);
-  console.log('Environment:', process.env.NODE_ENV || 'development');
-}); 
+// Function to find an available port
+const findAvailablePort = async (startPort) => {
+  const net = require('net');
+
+  return new Promise((resolve, reject) => {
+    const server = net.createServer();
+    server.unref();
+    server.on('error', (err) => {
+      if (err.code === 'EADDRINUSE') {
+        resolve(findAvailablePort(startPort + 1));
+      } else {
+        reject(err);
+      }
+    });
+
+    server.listen(startPort, () => {
+      server.close(() => {
+        resolve(startPort);
+      });
+    });
+  });
+};
+
+// Start server with port fallback
+const startServer = async () => {
+  try {
+    const desiredPort = process.env.PORT || 5000;
+    const port = await findAvailablePort(desiredPort);
+
+    app.listen(port, () => {
+      console.log(`Server running on port ${port}`);
+      console.log('Environment:', process.env.NODE_ENV || 'development');
+    });
+  } catch (error) {
+    console.error('Failed to start server:', error);
+    process.exit(1);
+  }
+};
+
+startServer(); 

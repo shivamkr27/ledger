@@ -6,7 +6,7 @@ const Inventory = require('../models/Inventory');
 const auth = require('../middleware/auth');
 
 // Get all orders with date filtering
-router.get('/', auth, async (req, res) => {
+router.get('/', async (req, res) => {
   try {
     console.log('Received orders request with query:', req.query);
 
@@ -30,7 +30,7 @@ router.get('/', auth, async (req, res) => {
     console.error('Error fetching orders:', error);
     res.status(500).json({
       message: 'Error fetching orders',
-      error: error.message
+      error: process.env.NODE_ENV === 'development' ? error.message : undefined
     });
   }
 });
@@ -67,146 +67,179 @@ router.post('/', auth, async (req, res) => {
       });
     }
 
-    // Get rate from rates collection
-    const rate = await Rate.findOne({
-      item: req.body.item.trim(),
-      type: req.body.type.trim()
-    });
+    try {
+        // Get rate first
+        const rate = await Rate.findOne({
+            item: req.body.item.trim(),
+            type: req.body.type.trim()
+        });
+        if (!rate) {
+            const rates = await Rate.find({});
+            const availableItems = rates.map(r => `${r.item} (${r.type})`).join(', ');
+            return res.status(400).json({
+                message: 'Rate not found for selected item and type',
+                details: {
+                    availableItems: availableItems,
+                    requested: `${req.body.item} (${req.body.type})`
+                }
+            });
+        }
 
-    if (!rate) {
-      return res.status(400).json({
-        message: 'Rate not found',
-        errors: [`No rate found for item "${req.body.item}" and type "${req.body.type}"`]
-      });
+        // Check inventory
+        const inventory = await Inventory.findOne({
+            item: req.body.item.trim(),
+            type: req.body.type.trim()
+        });
+
+        if (!inventory || inventory.quantity < req.body.quantity) {
+            return res.status(400).json({
+                message: 'Insufficient inventory quantity',
+                details: {
+                    available: inventory?.quantity || 0,
+                    required: req.body.quantity
+                }
+            });
+        }
+
+        // Calculate financial values
+        const totalAmount = req.body.quantity * rate.rate;
+        const paidAmount = Number(req.body.paidAmount) || 0;
+        const dueAmount = totalAmount - paidAmount;
+
+        // Create and save order
+        const order = new Order({
+            ...req.body,
+            orderDate: new Date(),
+            rate: rate.rate,
+            totalAmount: totalAmount,
+            paidAmount: paidAmount,
+            dueAmount: dueAmount
+        });
+
+        try {
+            // Save order
+            const savedOrder = await order.save();
+            
+            // Update inventory
+            try {
+                // Update inventory quantity
+                inventory.quantity -= req.body.quantity;
+                await inventory.save();
+            } catch (invError) {
+                console.error('Error updating inventory:', invError);
+                throw invError;
+            }
+
+            // Return saved order
+            res.status(201).json(savedOrder);
+        } catch (error) {
+            console.error('Error saving order:', error);
+            throw error;
+        }
+    } catch (error) {
+        console.error('Error creating order:', error);
+        if (error.code === 11000) {
+            return res.status(400).json({
+                message: 'Duplicate order ID'
+            });
+        }
+        res.status(400).json({
+            message: 'Error creating order',
+            error: process.env.NODE_ENV === 'development' ? error.message : undefined
+        });
     }
-
-    // Check inventory availability
-    const inventory = await Inventory.findOne({
-      itemName: req.body.item.trim(),
-      category: req.body.type.trim()
-    });
-
-    if (!inventory) {
-      return res.status(400).json({
-        message: 'Inventory not found',
-        errors: [`No inventory found for item "${req.body.item}" and category "${req.body.type}"`]
-      });
-    }
-
-    if (inventory.quantity < req.body.quantity) {
-      return res.status(400).json({
-        message: 'Insufficient inventory',
-        errors: [`Not enough stock. Available: ${inventory.quantity}, Requested: ${req.body.quantity}`]
-      });
-    }
-
-    // Calculate amounts
-    const totalAmount = rate.rate * req.body.quantity;
-    const dueAmount = totalAmount - req.body.paidAmount;
-
-    // Create order
-    const order = new Order({
-      customerName: req.body.customerName.trim(),
-      customerNumber: req.body.customerNumber.trim(),
-      item: req.body.item.trim(),
-      type: req.body.type.trim(),
-      quantity: req.body.quantity,
-      rate: rate.rate,
-      totalAmount,
-      paidAmount: req.body.paidAmount,
-      dueAmount,
-      deliveryStatus: req.body.deliveryStatus,
-      deliveryDateTime: new Date(req.body.deliveryDateTime),
-      orderDate: new Date()
-    });
-
-    // Save order
-    const savedOrder = await order.save();
-    console.log('Order saved successfully:', savedOrder);
-
-    // Update inventory
-    inventory.quantity -= req.body.quantity;
-    await inventory.save();
-    console.log('Inventory updated:', inventory);
-
-    res.status(201).json(savedOrder);
   } catch (error) {
     console.error('Error creating order:', error);
-
-    if (error.name === 'ValidationError') {
-      const validationErrors = Object.values(error.errors).map(err => err.message);
-      return res.status(400).json({
-        message: 'Validation error',
-        errors: validationErrors
-      });
-    }
-
     if (error.code === 11000) {
       return res.status(400).json({
-        message: 'Duplicate order ID',
-        errors: ['An order with this ID already exists']
+        message: 'Duplicate order ID'
       });
     }
-
     res.status(500).json({
       message: 'Error creating order',
-      errors: [error.message]
+      error: process.env.NODE_ENV === 'development' ? error.message : undefined
     });
   }
 });
 
 // Update an order
-router.put('/:id', auth, async (req, res) => {
+router.put('/:id', async (req, res) => {
   try {
-    const { item, type, quantity } = req.body;
+    // If no user, try to authenticate
+    if (!req.user) {
+      const token = req.header('Authorization')?.replace('Bearer ', '');
+      if (!token) {
+        return res.status(401).json({ error: 'Authentication required' });
+      }
+
+      try {
+        const decoded = jwt.verify(token, process.env.JWT_SECRET);
+        req.user = decoded;
+      } catch (jwtError) {
+        return res.status(401).json({ error: 'Invalid token' });
+      }
+    }
+
     const order = await Order.findById(req.params.id);
     if (!order) {
       return res.status(404).json({ message: 'Order not found' });
     }
-
-    // Get rate from rates collection
-    const rate = await Rate.findOne({ item, type });
-    if (!rate) {
-      return res.status(400).json({ message: 'Rate not found for the selected item and type' });
-    }
-
-    // Check inventory
-    const inventory = await Inventory.findOne({ item, type });
-    if (!inventory) {
-      return res.status(400).json({ message: 'Inventory not found for the selected item and type' });
-    }
-
-    // Calculate quantity difference
-    const quantityDiff = quantity - order.quantity;
-    if (inventory.quantity < quantityDiff) {
-      return res.status(400).json({ message: 'Insufficient stock' });
-    }
-
-    // Calculate amounts
-    const totalAmount = quantity * rate.rate;
-    const paidAmount = req.body.paidAmount || 0;
-    const dueAmount = totalAmount - paidAmount;
 
     // Update order
     const updatedOrder = await Order.findByIdAndUpdate(
       req.params.id,
       {
         ...req.body,
-        rate: rate.rate,
-        totalAmount,
-        paidAmount,
-        dueAmount
+        orderDate: new Date()
       },
       { new: true }
     );
 
     // Update inventory
-    inventory.quantity -= quantityDiff;
-    await inventory.save();
+    try {
+      const inventory = await Inventory.findOne({
+        itemName: req.body.item,
+        category: req.body.type
+      });
+
+      if (inventory) {
+        // Calculate quantity difference
+        const quantityDiff = req.body.quantity - order.quantity;
+        if (quantityDiff > 0 && inventory.quantity >= quantityDiff) {
+          inventory.quantity -= quantityDiff;
+          await inventory.save();
+        } else if (quantityDiff < 0) {
+          inventory.quantity += Math.abs(quantityDiff);
+          await inventory.save();
+        }
+      }
+    } catch (invError) {
+      console.error('Error updating inventory:', invError);
+    }
+
+    // Update rate
+    try {
+      const rate = await Rate.findOne({
+        item: req.body.item,
+        type: req.body.type
+      });
+
+      if (rate) {
+        updatedOrder.rate = rate.rate;
+        updatedOrder.totalAmount = req.body.quantity * rate.rate;
+        await updatedOrder.save();
+      }
+    } catch (rateError) {
+      console.error('Error updating rate:', rateError);
+    }
 
     res.json(updatedOrder);
   } catch (error) {
-    res.status(400).json({ message: error.message });
+    console.error('Error updating order:', error);
+    res.status(500).json({
+      message: 'Error updating order',
+      error: process.env.NODE_ENV === 'development' ? error.message : undefined
+    });
   }
 });
 
@@ -219,17 +252,29 @@ router.delete('/:id', auth, async (req, res) => {
     }
 
     // Update inventory
-    const inventory = await Inventory.findOne({ item: order.item, type: order.type });
-    if (inventory) {
-      inventory.quantity += order.quantity;
-      await inventory.save();
+    try {
+      const inventory = await Inventory.findOne({
+        itemName: order.item,
+        category: order.type
+      });
+
+      if (inventory) {
+        inventory.quantity += order.quantity;
+        await inventory.save();
+      }
+    } catch (invError) {
+      console.error('Error updating inventory:', invError);
     }
 
     await order.remove();
     res.json({ message: 'Order deleted' });
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    console.error('Error deleting order:', error);
+    res.status(500).json({
+      message: 'Error deleting order',
+      error: process.env.NODE_ENV === 'development' ? error.message : undefined
+    });
   }
 });
 
-module.exports = router; 
+module.exports = router;

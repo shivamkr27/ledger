@@ -84,6 +84,22 @@ router.post('/login', async (req, res) => {
 });
 
 // Verify token route
+router.post('/refresh', auth, async (req, res) => {
+    try {
+        // Generate new token with same payload
+        const token = jwt.sign(
+            { userId: req.user.userId },
+            process.env.JWT_SECRET,
+            { expiresIn: '24h' }
+        );
+
+        res.json({ token });
+    } catch (error) {
+        console.error('Token refresh error:', error);
+        res.status(500).json({ error: 'Error refreshing token' });
+    }
+});
+
 router.get('/verify', auth, async (req, res) => {
   try {
     const user = await User.findById(req.user.userId).select('-password');

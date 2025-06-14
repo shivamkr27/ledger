@@ -3,24 +3,24 @@ const mongoose = require('mongoose');
 const rateSchema = new mongoose.Schema({
   item: {
     type: String,
-    required: true,
+    required: [true, 'Item is required'],
     trim: true
   },
   type: {
     type: String,
-    required: true,
+    required: [true, 'Type is required'],
     trim: true
   },
   rate: {
     type: Number,
-    required: true,
-    min: 0
+    required: [true, 'Rate is required'],
+    min: [0, 'Rate cannot be negative']
   }
 }, {
   timestamps: true
 });
 
-// Drop any existing indexes
-rateSchema.index({ item: 1, type: 1 }, { unique: true });
+// Create the model
+const Rate = mongoose.model('Rate', rateSchema);
 
-module.exports = mongoose.model('Rate', rateSchema); 
+module.exports = Rate; 

@@ -37,6 +37,22 @@
         <i class="fas fa-boxes"></i>
         <span>Inventory</span>
       </button>
+      <button class="sidebar-btn" data-section="ledger">
+        <i class="fas fa-book"></i>
+        <span>Ledger</span>
+      </button>
+      <button class="sidebar-btn" data-section="wholesaler">
+        <i class="fas fa-truck"></i>
+        <span>Wholesaler</span>
+      </button>
+      <button class="sidebar-btn" data-section="staff">
+        <i class="fas fa-users"></i>
+        <span>Staff</span>
+      </button>
+      <button class="sidebar-btn" data-section="find">
+        <i class="fas fa-search"></i>
+        <span>Find</span>
+      </button>
     </div>
 
     <!-- Main Content -->
@@ -50,7 +66,7 @@
               <label for="order-date">Date:</label>
               <input type="date" id="order-date" name="order-date">
             </div>
-            <button id="add-order-btn" class="add-btn">Add Order</button>
+            <button id="add-order" class="add-btn" data-modal="order-modal">Add Order</button>
           </div>
         </div>
         <div class="table-container">
@@ -81,7 +97,7 @@
       <section id="rates-section" class="section">
         <div class="section-header">
           <h2>Rates</h2>
-          <button id="add-rate-btn" class="add-btn">Add Rate</button>
+          <button id="add-rate" class="add-btn" data-modal="rate-modal">Add Rate</button>
         </div>
         <div class="table-container">
           <table id="rates-table">
@@ -102,7 +118,7 @@
       <section id="inventory-section" class="section">
         <div class="section-header">
           <h2>Inventory</h2>
-          <button id="add-inventory-btn" class="add-btn">Add Inventory</button>
+          <button id="add-inventory" class="add-btn" data-modal="inventory-modal">Add Inventory</button>
         </div>
         <div class="table-container">
           <table id="inventory-table">
@@ -121,110 +137,306 @@
           </table>
         </div>
       </section>
+
+      <!-- Ledger Section -->
+      <section id="ledger-section" class="section">
+        <div class="section-header">
+          <h2>Ledger</h2>
+          <div class="header-controls">
+            <select id="customer-select">
+              <option value="">Select Customer</option>
+            </select>
+            <button id="add-ledger" class="add-btn" data-modal="ledger-modal">Add Entry</button>
+          </div>
+        </div>
+        <div class="table-container">
+          <table id="ledger-table">
+            <thead>
+              <tr>
+                <th>Customer Name</th>
+                <th>Phone Number</th>
+                <th>Total Amount</th>
+                <th>Paid Amount</th>
+                <th>Due Amount</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- Wholesaler Section -->
+      <section id="wholesaler-section" class="section">
+        <div class="section-header">
+          <h2>Wholesaler</h2>
+          <button id="add-wholesaler" class="add-btn" data-modal="wholesaler-modal">Add Transaction</button>
+        </div>
+        <div class="table-container">
+          <table id="wholesaler-table">
+            <thead>
+              <tr>
+                <th>Wholesaler Name</th>
+                <th>Bill No</th>
+                <th>Date</th>
+                <th>Item</th>
+                <th>Quantity</th>
+                <th>Rate</th>
+                <th>Total</th>
+                <th>Paid</th>
+                <th>Due</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- Staff Section -->
+      <section id="staff-section" class="section">
+        <div class="section-header">
+          <h2>Staff</h2>
+          <button id="add-staff" class="add-btn" data-modal="staff-modal">Add Staff</button>
+        </div>
+        <div class="table-container">
+          <table id="staff-table">
+            <thead>
+              <tr>
+                <th>Staff Name</th>
+                <th>Staff ID</th>
+                <th>Role</th>
+                <th>Contact Number</th>
+                <th>Email</th>
+                <th>Hire Date</th>
+                <th>Salary</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- Find Section -->
+      <section id="find-section" class="section">
+        <div class="section-header">
+          <h2>Find</h2>
+          <div class="search-container">
+            <input type="text" id="search-input" placeholder="Search across all modules...">
+            <button id="search-btn" class="search-btn">
+              <i class="fas fa-search"></i>
+            </button>
+          </div>
+        </div>
+        <div id="search-results" class="search-results">
+          <!-- Results will be populated dynamically -->
+        </div>
+      </section>
     </main>
   </div>
 
-  <!-- Order Modal -->
-  <div id="order-modal" class="modal">
+  <!-- Add buttons -->
+  <div class="add-buttons">
+    <button id="add-order" class="add-btn" data-modal="order-modal">Add Order</button>
+    <button id="add-rate" class="add-btn" data-modal="rate-modal">Add Rate</button>
+    <button id="add-inventory" class="add-btn" data-modal="inventory-modal">Add Inventory</button>
+    <button id="add-wholesaler" class="add-btn" data-modal="wholesaler-modal">Add Transaction</button>
+    <button id="add-staff" class="add-btn" data-modal="staff-modal">Add Staff</button>
+  </div>
+
+  <!-- Modals -->
+  <div id="order-modal" class="modal" style="display: none;">
     <div class="modal-content">
       <div class="modal-header">
         <h3>Add Order</h3>
-        <button class="close-btn">&times;</button>
+        <button class="close-btn" aria-label="Close modal">&times;</button>
       </div>
       <form id="order-form">
         <div class="form-group">
           <label for="customerName">Customer Name</label>
-          <input type="text" id="customerName" name="customerName" required>
+          <input type="text" id="customerName" name="customerName" autocomplete="name" required aria-required="true">
         </div>
         <div class="form-group">
           <label for="customerNumber">Customer Number</label>
-          <input type="text" id="customerNumber" name="customerNumber" required>
+          <input type="tel" id="customerNumber" name="customerNumber" autocomplete="tel" required aria-required="true">
         </div>
         <div class="form-group">
-          <label for="item">Item</label>
-          <input type="text" id="item" name="item" required>
+          <label for="orderItem">Item</label>
+          <input type="text" id="orderItem" name="item" autocomplete="off" required aria-required="true">
         </div>
         <div class="form-group">
-          <label for="type">Type</label>
-          <input type="text" id="type" name="type" required>
+          <label for="orderType">Type</label>
+          <input type="text" id="orderType" name="type" required aria-required="true">
         </div>
         <div class="form-group">
-          <label for="quantity">Quantity</label>
-          <input type="number" id="quantity" name="quantity" min="1" required>
+          <label for="orderQuantity">Quantity</label>
+          <input type="number" id="orderQuantity" name="quantity" min="1" step="0.01" required aria-required="true">
         </div>
         <div class="form-group">
-          <label for="paidAmount">Paid Amount</label>
-          <input type="number" id="paidAmount" name="paidAmount" min="0" required>
+          <label for="orderRate">Rate (₹)</label>
+          <input type="number" id="orderRate" name="rate" min="0" step="0.01" required aria-required="true">
+        </div>
+
+        <div class="form-group">
+          <label for="orderPaidAmount">Paid Amount (₹)</label>
+          <input type="number" id="orderPaidAmount" name="paidAmount" min="0" step="0.01" required aria-required="true">
         </div>
         <div class="form-group">
-          <label for="deliveryStatus">Delivery Status</label>
-          <select id="deliveryStatus" name="deliveryStatus" required>
-            <option value="">Select Status</option>
+          <label for="orderDeliveryStatus">Delivery Status</label>
+          <select id="orderDeliveryStatus" name="deliveryStatus" required aria-required="true">
+            <option value="Pending">Pending</option>
             <option value="Delivered">Delivered</option>
-            <option value="Scheduled">Scheduled</option>
+            <option value="Cancelled">Cancelled</option>
           </select>
         </div>
         <div class="form-group">
-          <label for="deliveryDateTime">Delivery DateTime</label>
-          <input type="datetime-local" id="deliveryDateTime" name="deliveryDateTime" required>
+          <label for="orderDeliveryDateTime">Delivery Date & Time</label>
+          <input type="datetime-local" id="orderDeliveryDateTime" name="deliveryDateTime" required aria-required="true">
         </div>
         <button type="submit" class="submit-btn">Save</button>
       </form>
     </div>
   </div>
 
-  <!-- Rate Modal -->
-  <div id="rate-modal" class="modal">
+  <div id="rate-modal" class="modal" style="display: none;">
     <div class="modal-content">
       <div class="modal-header">
         <h3>Add Rate</h3>
-        <button class="close-btn">&times;</button>
+        <button class="close-btn" aria-label="Close modal">&times;</button>
       </div>
       <form id="rate-form">
         <div class="form-group">
-          <label for="rate-item">Item</label>
-          <input type="text" id="rate-item" name="item" required>
+          <label for="rateItem">Item</label>
+          <input type="text" id="rateItem" name="item" autocomplete="off" required aria-required="true">
         </div>
         <div class="form-group">
-          <label for="rate-type">Type</label>
-          <input type="text" id="rate-type" name="type" required>
+          <label for="rateType">Type</label>
+          <input type="text" id="rateType" name="type" required aria-required="true">
         </div>
         <div class="form-group">
-          <label for="rate-value">Rate</label>
-          <input type="number" id="rate-value" name="rate" min="0" step="0.01" required>
+          <label for="rateValue">Rate (₹)</label>
+          <input type="number" id="rateValue" name="rate" min="0" step="0.01" required aria-required="true">
         </div>
         <button type="submit" class="submit-btn">Save</button>
       </form>
     </div>
   </div>
 
-  <!-- Inventory Modal -->
-  <div id="inventory-modal" class="modal">
+  <div id="inventory-modal" class="modal" style="display: none;">
     <div class="modal-content">
       <div class="modal-header">
-        <h3>Add Inventory</h3>
-        <button class="close-btn">&times;</button>
+        <h3>Add Inventory Item</h3>
+        <button class="close-btn" aria-label="Close modal">&times;</button>
       </div>
       <form id="inventory-form">
         <div class="form-group">
-          <label for="itemName">Item Name</label>
-          <input type="text" id="itemName" name="itemName" required>
+          <label for="inventoryItemName">Item Name</label>
+          <input type="text" id="inventoryItemName" name="itemName" autocomplete="off" required aria-required="true">
         </div>
         <div class="form-group">
-          <label for="category">Category</label>
-          <input type="text" id="category" name="category" required>
+          <label for="inventoryCategory">Category</label>
+          <input type="text" id="inventoryCategory" name="category" required aria-required="true">
         </div>
         <div class="form-group">
-          <label for="quantity">Quantity</label>
-          <input type="number" id="quantity" name="quantity" min="0" required>
+          <label for="inventoryQuantity">Quantity</label>
+          <input type="number" id="inventoryQuantity" name="quantity" min="0" required aria-required="true">
         </div>
         <div class="form-group">
-          <label for="unitPrice">Unit Price</label>
-          <input type="number" id="unitPrice" name="unitPrice" min="0" step="0.01" required>
+          <label for="inventoryUnitPrice">Unit Price (₹)</label>
+          <input type="number" id="inventoryUnitPrice" name="unitPrice" min="0" step="0.01" required
+            aria-required="true">
         </div>
         <div class="form-group">
-          <label for="threshold">Threshold</label>
-          <input type="number" id="threshold" name="threshold" min="0" required>
+          <label for="inventoryThreshold">Threshold</label>
+          <input type="number" id="inventoryThreshold" name="threshold" min="0" required aria-required="true">
+        </div>
+        <button type="submit" class="submit-btn">Save</button>
+      </form>
+    </div>
+  </div>
+
+  <div id="wholesaler-modal" class="modal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h2>Add Wholesaler Transaction</h2>
+        <button class="close-btn">&times;</button>
+      </div>
+      <form id="wholesaler-form">
+        <div class="form-group">
+          <label for="wholesalerName">Wholesaler Name:</label>
+          <input type="text" id="wholesalerName" name="wholesalerName" required>
+        </div>
+        <div class="form-group">
+          <label for="billNo">Bill Number:</label>
+          <input type="text" id="billNo" name="billNo" required>
+        </div>
+        <div class="form-group">
+          <label for="item">Item:</label>
+          <input type="text" id="item" name="item" required>
+        </div>
+        <div class="form-group">
+          <label for="type">Type:</label>
+          <select id="type" name="type" required>
+            <option value="">Select Type</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label for="quantity">Quantity:</label>
+          <input type="number" id="quantity" name="quantity" min="0" step="0.01" required>
+        </div>
+        <div class="form-group">
+          <label for="rate">Rate:</label>
+          <input type="number" id="rate" name="rate" min="0" step="0.01" required>
+        </div>
+        <div class="form-group">
+          <label for="totalAmount">Total Amount:</label>
+          <input type="text" id="totalAmount" name="totalAmount" readonly>
+        </div>
+        <div class="form-group">
+          <label for="paid">Paid Amount:</label>
+          <input type="number" id="paid" name="paid" min="0" step="0.01" required>
+        </div>
+        <div class="form-actions">
+          <button type="submit" class="submit-btn">Save Transaction</button>
+          <button type="button" class="cancel-btn close-btn">Cancel</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <div id="staff-modal" class="modal" style="display: none;">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3>Add Staff Member</h3>
+        <button class="close-btn" aria-label="Close modal">&times;</button>
+      </div>
+      <form id="staff-form">
+        <div class="form-group">
+          <label for="staffName">Staff Name</label>
+          <input type="text" id="staffName" name="staffName" autocomplete="name" required aria-required="true">
+        </div>
+        <div class="form-group">
+          <label for="staffId">Staff ID</label>
+          <input type="text" id="staffId" name="staffId" autocomplete="off" required aria-required="true">
+        </div>
+        <div class="form-group">
+          <label for="staffRole">Role</label>
+          <select id="staffRole" name="role" required aria-required="true">
+            <option value="">Select Role</option>
+            <option value="Manager">Manager</option>
+            <option value="Sales">Sales</option>
+            <option value="Delivery">Delivery</option>
+            <option value="Admin">Admin</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label for="staffPhone">Phone Number</label>
+          <input type="tel" id="staffPhone" name="phone" autocomplete="tel" required aria-required="true">
+        </div>
+        <div class="form-group">
+          <label for="staffEmail">Email</label>
+          <input type="email" id="staffEmail" name="email" autocomplete="email" required aria-required="true">
         </div>
         <button type="submit" class="submit-btn">Save</button>
       </form>
@@ -235,6 +447,28 @@
     document.getElementById('logout-btn').addEventListener('click', () => {
       localStorage.removeItem('token');
       window.location.href = 'index.html';
+    });
+
+    // Debug logging for DOM elements
+    document.addEventListener('DOMContentLoaded', () => {
+      console.log('Debug: Checking DOM elements');
+
+      // Check buttons
+      const buttons = ['add-order', 'add-rate', 'add-inventory', 'add-wholesaler', 'add-staff'];
+      buttons.forEach(id => {
+        const button = document.getElementById(id);
+        console.log(`Button ${id}:`, button ? 'Found' : 'Not found');
+      });
+
+      // Check modals
+      const modals = ['order-modal', 'rate-modal', 'inventory-modal', 'wholesaler-modal', 'staff-modal'];
+      modals.forEach(id => {
+        const modal = document.getElementById(id);
+        console.log(`Modal ${id}:`, modal ? 'Found' : 'Not found');
+        if (modal) {
+          console.log(`Modal ${id} display:`, modal.style.display);
+        }
+      });
     });
   </script>
 
